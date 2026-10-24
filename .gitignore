@@ -1,0 +1,62 @@
+target/
+**/target/
+.env
+.idea/
+.vscode/
+*.iml
+uploads/
+
+# Java y Maven
+target/
+*.class
+
+# IntelliJ y VS Code
+.idea/
+.vscode/
+*.iml
+
+# Respaldos locales
+/api-gateway-respaldo/
+/auth-service-respaldo/
+*.backup
+*.bak
+*.dump
+*.zip
+*.rar
+*.7z
+
+# Secretos y configuraciones privadas
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+**/application-local.yml
+**/application-local.yaml
+**/application-local.properties
+
+# Archivos temporales
+*.log
+logs/
+.DS_Store
+Thumbs.db
+
+# Respaldos internos de microservicios
+**/backup-*/
+**/backup/
+**/backup-db/
+**/backup-migraciones-*/
+**/backup-pruebas-*/
+
+# Respaldos de carpetas completas
+/api-gateway-respaldo/
+/auth-service-respaldo/
+
+# Archivos privados y temporales
+*.backup
+*.bak
+*.dump
+*.log

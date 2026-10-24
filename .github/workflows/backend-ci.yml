@@ -1,0 +1,37 @@
+name: Backend CI
+on:
+  push:
+    paths:
+      - '**/*.java'
+      - '**/pom.xml'
+      - '**/*.sql'
+      - '.github/workflows/backend-ci.yml'
+  pull_request:
+  workflow_dispatch:
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: Check Docker availability for Testcontainers
+        run: docker info
+      - name: Run unit and PostgreSQL integration tests
+        env:
+          JWT_SECRET: ${{ secrets.JWT_SECRET_FOR_TESTS }}
+          INTERNAL_API_KEY: ${{ secrets.INTERNAL_API_KEY_FOR_TESTS }}
+        run: mvn -B -ntp clean verify
+      - name: Save Surefire and Failsafe results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: |
+            **/target/surefire-reports/*
+            **/target/failsafe-reports/*
+          if-no-files-found: warn

@@ -1,0 +1,70 @@
+server:
+  port: 8085
+  shutdown: graceful
+
+spring:
+  application:
+    name: api-gateway
+
+  main:
+    web-application-type: reactive
+
+  cloud:
+    gateway:
+      server:
+        webflux:
+          discovery:
+            locator:
+              enabled: false
+
+          httpclient:
+            connect-timeout: 3000
+            response-timeout: 10s
+
+          routes:
+            - id: auth-service
+              uri: lb://auth-service
+              predicates:
+                - Path=/api/auth/**,/api/usuarios,/api/usuarios/**
+
+            - id: comercio-catalogo
+              uri: lb://comercio-service
+              predicates:
+                - Path=/api/productos,/api/productos/**,/api/categorias,/api/categorias/**,/api/generos,/api/generos/**,/api/tallas,/api/tallas/**,/api/producto-tallas,/api/producto-tallas/**,/api/producto-imagenes,/api/producto-imagenes/**,/api/imagenes,/api/imagenes/**
+
+            - id: comercio-ventas
+              uri: lb://comercio-service
+              predicates:
+                - Path=/api/ventas,/api/ventas/**,/api/pagos,/api/pagos/**,/api/direcciones,/api/direcciones/**
+
+            - id: comercio-admin
+              uri: lb://comercio-service
+              predicates:
+                - Path=/api/clientes-presenciales,/api/clientes-presenciales/**,/api/reportes,/api/reportes/**
+
+            - id: contenido-service
+              uri: lb://contenido-service
+              predicates:
+                - Path=/api/home/**,/api/contenido/**
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVER_URL:http://localhost:8761/eureka/}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+  endpoint:
+    health:
+      show-details: never
+
+gateway:
+  auth:
+    url: ${AUTH_INTERNAL_URL:http://localhost:8081}
+
+  cors:
+    origins: ${CORS_ALLOWED_ORIGINS:http://localhost:4200,http://127.0.0.1:4200}
