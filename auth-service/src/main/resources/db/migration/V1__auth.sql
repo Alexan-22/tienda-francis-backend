@@ -1,14 +1,1 @@
-CREATE TABLE usuarios (
-                          id BIGSERIAL PRIMARY KEY,
-
-                          email VARCHAR(255) NOT NULL UNIQUE,
-
-                          password_hash VARCHAR(255) NOT NULL,
-
-                          nombre VARCHAR(255) NOT NULL,
-
-                          rol VARCHAR(30) NOT NULL DEFAULT 'CLIENTE'
-                              CHECK (rol IN ('CLIENTE', 'ADMIN')),
-
-                          activo BOOLEAN NOT NULL DEFAULT TRUE
-);
+CREATE TABLE usuarios(id BIGSERIAL PRIMARY KEY,email VARCHAR(255) NOT NULL UNIQUE,password_hash VARCHAR(255) NOT NULL,nombre VARCHAR(255) NOT NULL,rol VARCHAR(30) NOT NULL DEFAULT 'CLIENTE' CHECK (rol IN ('CLIENTE','ADMIN')),activo BOOLEAN NOT NULL DEFAULT TRUE);
