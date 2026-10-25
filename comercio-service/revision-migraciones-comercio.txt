@@ -1,0 +1,206 @@
+﻿========== V1__comercio.sql ==========
+CREATE TABLE productos (
+                           id BIGSERIAL PRIMARY KEY,
+                           nombre VARCHAR(255) NOT NULL,
+                           precio NUMERIC(12, 2) NOT NULL CHECK (precio > 0),
+                           precio_oferta NUMERIC(12, 2)
+                               CHECK (precio_oferta > 0 AND precio_oferta < precio),
+                           activo BOOLEAN NOT NULL DEFAULT TRUE
+);
+
+CREATE TABLE producto_tallas (
+                                 id BIGSERIAL PRIMARY KEY,
+                                 producto_id BIGINT NOT NULL REFERENCES productos(id),
+                                 talla VARCHAR(30) NOT NULL,
+                                 stock_fisico INT NOT NULL DEFAULT 0 CHECK (stock_fisico >= 0),
+                                 stock_reservado INT NOT NULL DEFAULT 0
+                                     CHECK (
+                                         stock_reservado >= 0
+                                             AND stock_reservado <= stock_fisico
+                                         ),
+                                 version BIGINT NOT NULL DEFAULT 0,
+                                 UNIQUE (producto_id, talla)
+);
+
+CREATE TABLE ventas (
+                        id BIGSERIAL PRIMARY KEY,
+                        idempotencia UUID NOT NULL UNIQUE,
+                        usuario_id BIGINT NOT NULL,
+                        tipo VARCHAR(20) NOT NULL,
+                        estado VARCHAR(30) NOT NULL,
+                        pago_estado VARCHAR(30) NOT NULL,
+                        total NUMERIC(12, 2) NOT NULL CHECK (total >= 0),
+                        creada TIMESTAMPTZ NOT NULL,
+                        vence TIMESTAMPTZ
+);
+
+CREATE TABLE detalle_ventas (
+                                id BIGSERIAL PRIMARY KEY,
+                                venta_id BIGINT NOT NULL REFERENCES ventas(id),
+                                variante_id BIGINT NOT NULL REFERENCES producto_tallas(id),
+                                producto_nombre VARCHAR(255) NOT NULL,
+                                talla VARCHAR(30) NOT NULL,
+                                cantidad INT NOT NULL CHECK (cantidad > 0),
+                                precio_unitario NUMERIC(12, 2) NOT NULL
+                                    CHECK (precio_unitario > 0)
+);
+
+CREATE INDEX ix_ventas_usuario
+    ON ventas(usuario_id, creada);
+
+========== V2__pos_pagos_devoluciones.sql ==========
+ALTER TABLE ventas
+    ALTER COLUMN usuario_id DROP NOT NULL;
+
+ALTER TABLE ventas
+    ADD COLUMN responsable_id BIGINT;
+
+ALTER TABLE ventas
+    ADD COLUMN cliente_presencial_nombre VARCHAR(255);
+
+ALTER TABLE ventas
+    ADD COLUMN solicitud_hash VARCHAR(64);
+
+ALTER TABLE ventas
+    ADD CONSTRAINT ck_tipo
+        CHECK (tipo IN ('ONLINE', 'PRESENCIAL'));
+
+ALTER TABLE ventas
+    ADD CONSTRAINT ck_venta_total
+        CHECK (total >= 0);
+
+CREATE TABLE pagos (
+                       id BIGSERIAL PRIMARY KEY,
+                       venta_id BIGINT NOT NULL REFERENCES ventas(id),
+                       idempotencia UUID NOT NULL UNIQUE,
+                       monto NUMERIC(12, 2) NOT NULL CHECK (monto > 0),
+                       medio VARCHAR(20) NOT NULL
+                           CHECK (medio IN ('EFECTIVO', 'YAPE', 'TARJETA')),
+                       referencia VARCHAR(255),
+                       responsable_id BIGINT NOT NULL,
+                       estado VARCHAR(30) NOT NULL DEFAULT 'CONFIRMADO'
+                           CHECK (estado IN ('CONFIRMADO', 'ANULADO')),
+                       creado TIMESTAMPTZ NOT NULL,
+                       anulado_en TIMESTAMPTZ,
+                       motivo_anulacion VARCHAR(500),
+
+                       CHECK (
+                           (
+                               estado = 'ANULADO'
+                                   AND anulado_en IS NOT NULL
+                                   AND motivo_anulacion IS NOT NULL
+                               )
+                               OR
+                           (
+                               estado = 'CONFIRMADO'
+                                   AND anulado_en IS NULL
+                                   AND motivo_anulacion IS NULL
+                               )
+                           )
+);
+
+CREATE INDEX ix_pagos_venta
+    ON pagos(venta_id);
+
+CREATE TABLE devoluciones (
+                              id BIGSERIAL PRIMARY KEY,
+                              pago_id BIGINT NOT NULL REFERENCES pagos(id),
+                              idempotencia UUID NOT NULL UNIQUE,
+                              monto NUMERIC(12, 2) NOT NULL CHECK (monto > 0),
+                              motivo VARCHAR(500) NOT NULL,
+                              responsable_id BIGINT NOT NULL,
+                              creada TIMESTAMPTZ NOT NULL
+);
+
+CREATE INDEX ix_devoluciones_pago
+    ON devoluciones(pago_id);
+
+========== V3__cancelaciones_recepciones_inventario.sql ==========
+CREATE TABLE recepciones_devolucion (
+                                        id BIGSERIAL PRIMARY KEY,
+                                        venta_id BIGINT NOT NULL REFERENCES ventas(id),
+                                        detalle_id BIGINT NOT NULL REFERENCES detalle_ventas(id),
+                                        idempotencia UUID NOT NULL UNIQUE,
+                                        cantidad INT NOT NULL CHECK (cantidad > 0),
+                                        condicion VARCHAR(20) NOT NULL
+                                            CHECK (condicion IN ('APTO', 'DANADO')),
+                                        motivo VARCHAR(500) NOT NULL
+                                            CHECK (length(trim(motivo)) > 0),
+                                        responsable_id BIGINT NOT NULL,
+                                        repuesto BOOLEAN NOT NULL,
+                                        recibido_en TIMESTAMPTZ NOT NULL,
+                                        CHECK (repuesto = (condicion = 'APTO'))
+);
+
+CREATE INDEX ix_recepciones_venta
+    ON recepciones_devolucion(venta_id);
+
+CREATE INDEX ix_recepciones_detalle
+    ON recepciones_devolucion(detalle_id);
+
+CREATE TABLE movimientos_inventario (
+                                        id BIGSERIAL PRIMARY KEY,
+                                        variante_id BIGINT NOT NULL REFERENCES producto_tallas(id),
+                                        recepcion_id BIGINT NOT NULL UNIQUE
+                                            REFERENCES recepciones_devolucion(id),
+                                        cantidad INT NOT NULL CHECK (cantidad > 0),
+                                        tipo VARCHAR(30) NOT NULL
+                                            CHECK (tipo = 'REPOSICION_DEVOLUCION'),
+                                        motivo VARCHAR(500) NOT NULL,
+                                        responsable_id BIGINT NOT NULL,
+                                        creado_en TIMESTAMPTZ NOT NULL
+);
+
+CREATE INDEX ix_movimientos_variante_fecha
+    ON movimientos_inventario(variante_id, creado_en);
+
+========== V4__direcciones_delivery_y_seguimiento.sql ==========
+CREATE TABLE direcciones_envio (
+                                   id BIGSERIAL PRIMARY KEY,
+                                   usuario_id BIGINT NOT NULL,
+                                   destinatario VARCHAR(120) NOT NULL,
+                                   linea VARCHAR(255) NOT NULL,
+                                   distrito VARCHAR(100) NOT NULL,
+                                   provincia VARCHAR(100) NOT NULL,
+                                   departamento VARCHAR(100) NOT NULL,
+                                   activa BOOLEAN NOT NULL DEFAULT TRUE
+);
+
+CREATE INDEX ix_direcciones_usuario
+    ON direcciones_envio(usuario_id, activa);
+
+ALTER TABLE ventas
+    ADD COLUMN direccion_id BIGINT REFERENCES direcciones_envio(id);
+
+ALTER TABLE ventas
+    ADD COLUMN direccion_snapshot TEXT;
+
+ALTER TABLE ventas
+    ADD COLUMN subtotal NUMERIC(12, 2);
+
+ALTER TABLE ventas
+    ADD COLUMN delivery_costo NUMERIC(12, 2);
+
+ALTER TABLE ventas
+    ADD CONSTRAINT ck_delivery_costo
+        CHECK (delivery_costo IS NULL OR delivery_costo >= 0);
+
+CREATE INDEX ix_ventas_vence
+    ON ventas(vence, id)
+    WHERE estado = 'RECIBIDO'
+      AND pago_estado = 'PENDIENTE'
+      AND tipo = 'ONLINE';
+
+CREATE TABLE historial_pedidos (
+                                   id BIGSERIAL PRIMARY KEY,
+                                   venta_id BIGINT NOT NULL REFERENCES ventas(id),
+                                   origen VARCHAR(30) NOT NULL,
+                                   destino VARCHAR(30) NOT NULL,
+                                   responsable_id BIGINT,
+                                   motivo VARCHAR(500) NOT NULL,
+                                   ocurrido_en TIMESTAMPTZ NOT NULL
+);
+
+CREATE INDEX ix_historial_pedido_fecha
+    ON historial_pedidos(venta_id, ocurrido_en, id);
+
