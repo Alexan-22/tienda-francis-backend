@@ -176,6 +176,21 @@ public final class AccessPolicy {
                 return Nivel.ADMIN;
             }
         }
+        // =====================================================
+        // INVENTARIO ADMINISTRATIVO
+        // =====================================================
+
+        if (ruta.equals("/api/inventario/reposiciones")
+                && metodo == HttpMethod.POST) {
+
+            return Nivel.ADMIN;
+        }
+
+        if (ruta.equals("/api/inventario/movimientos")
+                && metodo == HttpMethod.GET) {
+
+            return Nivel.ADMIN;
+        }
 
         // Cualquier ruta no definida queda bloqueada
 

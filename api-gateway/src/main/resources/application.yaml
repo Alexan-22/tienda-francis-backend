@@ -40,8 +40,7 @@ spring:
             - id: comercio-admin
               uri: lb://comercio-service
               predicates:
-                - Path=/api/clientes-presenciales,/api/clientes-presenciales/**,/api/reportes,/api/reportes/**
-
+                - Path=/api/clientes-presenciales,/api/clientes-presenciales/**,/api/reportes,/api/reportes/**,/api/inventario,/api/inventario/**
             - id: contenido-service
               uri: lb://contenido-service
               predicates:
@@ -68,3 +67,4 @@ gateway:
 
   cors:
     origins: ${CORS_ALLOWED_ORIGINS:http://localhost:4200,http://127.0.0.1:4200}
+

@@ -1,8 +1,14 @@
+
 package com.tiendafrancis.comercio.bean.entity;
 
 import jakarta.persistence.*;
-import lombok.*;
+
+import lombok.AccessLevel;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+
 import java.time.Instant;
+import java.util.UUID;
 
 @Getter
 @Entity
@@ -14,11 +20,14 @@ public class MovimientoInventario {
  @GeneratedValue(strategy = GenerationType.IDENTITY)
  public Long id;
 
- @Column(nullable = false)
+ @Column(name = "variante_id", nullable = false)
  public Long varianteId;
 
- @Column(nullable = false)
+ @Column(name = "recepcion_id")
  public Long recepcionId;
+
+ @Column(name = "idempotencia")
+ public UUID idempotencia;
 
  @Column(nullable = false)
  public int cantidad;
@@ -29,11 +38,15 @@ public class MovimientoInventario {
  @Column(nullable = false, length = 500)
  public String motivo;
 
- @Column(nullable = false)
+ @Column(name = "responsable_id", nullable = false)
  public Long responsableId;
 
- @Column(nullable = false)
+ @Column(name = "creado_en", nullable = false)
  public Instant creadoEn = Instant.now();
+
+ // =================================================
+ // REPOSICIÓN POR DEVOLUCIÓN EXISTENTE
+ // =================================================
 
  public MovimientoInventario(
          Long variante,
@@ -44,8 +57,29 @@ public class MovimientoInventario {
  ) {
   this.varianteId = variante;
   this.recepcionId = recepcion;
+  this.idempotencia = null;
   this.cantidad = cantidad;
   this.tipo = "REPOSICION_DEVOLUCION";
+  this.motivo = motivo;
+  this.responsableId = actor;
+ }
+
+ // =================================================
+ // NUEVA REPOSICIÓN MANUAL
+ // =================================================
+
+ public MovimientoInventario(
+         Long variante,
+         UUID idempotencia,
+         int cantidad,
+         String motivo,
+         Long actor
+ ) {
+  this.varianteId = variante;
+  this.recepcionId = null;
+  this.idempotencia = idempotencia;
+  this.cantidad = cantidad;
+  this.tipo = "REPOSICION_MANUAL";
   this.motivo = motivo;
   this.responsableId = actor;
  }
